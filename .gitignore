@@ -1,1 +1,4 @@
 .vscode
+Logs
+Temp/*
+Library/ShaderCache/*

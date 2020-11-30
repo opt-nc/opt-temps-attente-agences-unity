@@ -8,9 +8,14 @@ public class SceneBuilder : MonoBehaviour
 {
     public GameObject original;
     public GameObject parent;
+    private JsonArray json;
     private float jsonUpdateTime = 10.0f;
     private float jsonNextTime = 30.0f;
     private string URL = "http://127.0.0.1:8081/temps-attente/agences";
+    public float shrinkSpeed = 0.5f;
+    private float waitBeforeShrink = 30.0f;
+    public GameObject wall;
+    public GameObject spawn;
 
     IEnumerator getJson(){
         UnityWebRequest request = UnityWebRequest.Get(URL);
@@ -21,7 +26,7 @@ public class SceneBuilder : MonoBehaviour
             yield break;
         }
         
-        JsonArray json = (JsonArray) JsonNode.ParseJsonString(request.downloadHandler.text);
+        json = (JsonArray) JsonNode.ParseJsonString(request.downloadHandler.text);
 
         foreach(JsonObject obj in json){
             var newSphere = Instantiate(original, original.transform.position, Quaternion.identity, parent.transform);
@@ -60,22 +65,7 @@ public class SceneBuilder : MonoBehaviour
             yield break;
         }
 
-        JsonArray json = (JsonArray) JsonNode.ParseJsonString(request.downloadHandler.text);
-
-        var i = 0;
-        foreach(GameObject obj in GameObject.FindGameObjectsWithTag("Sphere")){          
-            if(obj.name == "Sphere"){
-                continue;
-            }
-            i++;
-            
-            Vector3 scale = obj.transform.localScale;
-            scale = original.transform.localScale * (json[i-1]["realMaxWaitingTimeMs"]/700000 + 1);
-            if(scale.x != obj.transform.localScale.x){
-                obj.transform.localScale = scale;
-                obj.GetComponent<Rigidbody>().mass = scale.x > 1 ? scale.x * 5 : scale.x;
-            }
-        }
+        json = (JsonArray) JsonNode.ParseJsonString(request.downloadHandler.text);
         Debug.Log("Updated!");
     }
 
@@ -102,8 +92,21 @@ public class SceneBuilder : MonoBehaviour
             StartCoroutine(updateJson());
         }
         
-
+        var i = 0;
         foreach(GameObject obj in GameObject.FindGameObjectsWithTag("Sphere")){
+            if(obj.name == "Sphere"){
+                continue;
+            }
+            i++;
+            if(Time.time > waitBeforeShrink){
+                spawn.SetActive(false);
+                wall.SetActive(true);
+
+                Vector3 scale = obj.transform.localScale;
+                scale = original.transform.localScale * (json[i-1]["realMaxWaitingTimeMs"]/(1500000*2) + 1);
+                obj.transform.localScale = Vector3.Lerp(obj.transform.localScale, scale, Time.deltaTime*shrinkSpeed);
+                obj.GetComponent<Rigidbody>().mass = scale.x > 1 ? scale.x * 5 : scale.x;
+            }
             var rb = obj.GetComponent<Rigidbody>();
             
             rb.velocity = new Vector3(
